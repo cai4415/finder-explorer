@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "finder": {
+      "command": "bash",
+      "args": [
+        "${PLUGIN_ROOT}/bin/finder-server",
+        "--data_dir=${PLUGIN_DATA}"
+      ]
+    }
+  }
+}

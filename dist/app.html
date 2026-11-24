@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finder 浏览器</title>
+  <style>
+    :root {
+      --bg-primary: var(--color-background-primary, #ffffff);
+      --bg-secondary: var(--color-background-secondary, #f5f6f8);
+      --bg-tertiary: var(--color-background-tertiary, #eceef2);
+      --bg-info: var(--color-background-info, #e8f1ff);
+      --bg-danger: var(--color-background-danger, #fdecec);
+      --bg-success: var(--color-background-success, #e7f8ee);
+      --text-primary: var(--color-text-primary, #1b1d22);
+      --text-secondary: var(--color-text-secondary, #5d6470);
+      --text-tertiary: var(--color-text-tertiary, #8a919e);
+      --text-info: var(--color-text-info, #1d5bd6);
+      --text-danger: var(--color-text-danger, #c93030);
+      --text-success: var(--color-text-success, #16794c);
+      --border-primary: var(--color-border-primary, #dfe3ea);
+      --border-secondary: var(--color-border-secondary, #ebedf2);
+      --ring-primary: var(--color-ring-primary, #3b82f6);
+      --font-sans-ui: var(--font-sans, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", sans-serif);
+    }
+
+    html[data-theme="dark"] {
+      --bg-primary: var(--color-background-primary, #14161a);
+      --bg-secondary: var(--color-background-secondary, #1d2026);
+      --bg-tertiary: var(--color-background-tertiary, #272b33);
+      --bg-info: var(--color-background-info, #1b2c48);
+      --bg-danger: var(--color-background-danger, #3a1d20);
+      --bg-success: var(--color-background-success, #153224);
+      --text-primary: var(--color-text-primary, #eceff4);
+      --text-secondary: var(--color-text-secondary, #a2aab8);
+      --text-tertiary: var(--color-text-tertiary, #737b89);
+      --text-info: var(--color-text-info, #72a5ff);
+      --text-danger: var(--color-text-danger, #ff7b7b);
+      --text-success: var(--color-text-success, #5cd69a);
+      --border-primary: var(--color-border-primary, #2c313b);
+      --border-secondary: var(--color-border-secondary, #232730);
+      --ring-primary: var(--color-ring-primary, #60a5fa);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-sans-ui);
+      font-size: 13px;
+      line-height: 1.45;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      min-height: 460px;
+      width: 100%;
+      background: var(--bg-primary);
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid var(--border-secondary);
+      background: var(--bg-primary);
+      flex-shrink: 0;
+    }
+
+    .tabs {
+      display: inline-flex;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: 8px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .tab-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+    }
+
+    .tab-btn.active {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .icon-btn, .pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border: 1px solid var(--border-primary);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.12s ease, border-color 0.12s ease;
+    }
+
+    .icon-btn:hover, .pill-btn:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .pill-btn.primary {
+      background: var(--bg-info);
+      color: var(--text-info);
+      border-color: transparent;
+      font-weight: 500;
+    }
+
+    .icon-btn.active {
+      background: var(--bg-info);
+      color: var(--text-info);
+      border-color: transparent;
+    }
+
+    /* Quick roots strip */
+    .roots-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--border-secondary);
+      background: var(--bg-secondary);
+      flex-shrink: 0;
+      scrollbar-width: none;
+    }
+    .roots-bar::-webkit-scrollbar { display: none; }
+
+    .root-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--border-primary);
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      font-size: 11.5px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all 0.12s ease;
+    }
+
+    .root-chip:hover {
+      color: var(--text-primary);
+      border-color: var(--ring-primary);
+    }
+
+    .root-chip.active {
+      background: var(--bg-info);
+      color: var(--text-info);
+      border-color: transparent;
+      font-weight: 500;
+    }
+
+    .root-badge {
+      font-size: 10px;
+      opacity: 0.75;
+    }
+
+    /* Path & Search bar */
+    .toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-secondary);
+      background: var(--bg-primary);
+      flex-shrink: 0;
+    }
+
+    .path-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .breadcrumbs {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      min-width: 0;
+      overflow-x: auto;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border-primary);
+      background: var(--bg-secondary);
+      scrollbar-width: none;
+    }
+    .breadcrumbs::-webkit-scrollbar { display: none; }
+
+    .crumb-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 12px;
+      padding: 1px 4px;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .crumb-btn:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .crumb-btn.last {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .crumb-sep {
+      color: var(--text-tertiary);
+      font-size: 11px;
+      user-select: none;
+    }
+
+    .path-input {
+      flex: 1;
+      height: 28px;
+      padding: 0 8px;
+      border-radius: 6px;
+      border: 1px solid var(--ring-primary);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 12px;
+      outline: none;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .search-wrap {
+      position: relative;
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 28px;
+      padding: 0 26px 0 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border-primary);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 12px;
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: var(--ring-primary);
+      background: var(--bg-primary);
+    }
+
+    .clear-search {
+      position: absolute;
+      right: 6px;
+      border: none;
+      background: transparent;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      font-size: 13px;
+      padding: 0 2px;
+    }
+
+    .select-sort {
+      height: 28px;
+      padding: 0 6px;
+      border-radius: 6px;
+      border: 1px solid var(--border-primary);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* Prefs drawer */
+    .prefs-bar {
+      display: none;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 7px 12px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-primary);
+      font-size: 12px;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+    .prefs-bar.open {
+      display: flex;
+    }
+
+    .prefs-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* Hint strip */
+    .hint-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 12px;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      border-bottom: 1px solid var(--border-secondary);
+      background: var(--bg-primary);
+      flex-shrink: 0;
+    }
+
+    /* File List */
+    .list-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 6px 12px;
+      outline: none;
+    }
+
+    .file-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 7px;
+      cursor: default;
+      user-select: none;
+      border: 1px solid transparent;
+      transition: background 0.1s ease, border-color 0.1s ease;
+    }
+
+    .file-row:hover {
+      background: var(--bg-secondary);
+    }
+
+    .file-row.selected {
+      background: var(--bg-info);
+      border-color: transparent;
+    }
+
+    .file-row.flash {
+      animation: flashReveal 0.8s ease;
+    }
+
+    @keyframes flashReveal {
+      0% { background: var(--bg-success); }
+      100% { background: transparent; }
+    }
+
+    .file-icon {
+      width: 20px;
+      text-align: center;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    .file-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .file-name-line {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .file-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-row.is-dir .file-name {
+      font-weight: 600;
+    }
+
+    .tag-pill {
+      font-size: 10px;
+      padding: 0 5px;
+      border-radius: 4px;
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .tag-pill.current-conv {
+      background: var(--bg-info);
+      color: var(--text-info);
+    }
+
+    .file-sub {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      flex-shrink: 0;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-right: 4px;
+    }
+
+    .row-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.1s ease;
+      flex-shrink: 0;
+    }
+
+    .file-row:hover .row-actions,
+    .file-row.selected .row-actions {
+      opacity: 1;
+    }
+
+    .mini-btn {
+      border: 1px solid var(--border-primary);
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      border-radius: 5px;
+      padding: 2px 6px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .mini-btn:hover {
+      color: var(--text-primary);
+      border-color: var(--ring-primary);
+    }
+
+    .mini-btn.finder {
+      color: var(--text-info);
+      border-color: transparent;
+      background: var(--bg-info);
+      font-weight: 500;
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 16px;
+      color: var(--text-tertiary);
+      text-align: center;
+      gap: 6px;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--text-primary);
+      color: var(--bg-primary);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      max-width: 90%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      z-index: 50;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .toast.error {
+      background: var(--text-danger);
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="tabs">
+        <button class="tab-btn active" id="tab-dir" type="button">目录浏览</button>
+        <button class="tab-btn" id="tab-artifacts" type="button">最近产出</button>
+      </div>
+      <div class="header-actions">
+        <button class="pill-btn primary" id="btn-reveal-current" type="button" title="在 macOS 访达中显示当前目录">访达打开当前</button>
+        <button class="icon-btn" id="btn-refresh" type="button" title="刷新列表">↻</button>
+        <button class="icon-btn" id="btn-prefs" type="button" title="偏好设置">⚙</button>
+      </div>
+    </div>
+
+    <div class="roots-bar" id="roots-bar"></div>
+
+    <div class="prefs-bar" id="prefs-bar">
+      <label class="prefs-label">
+        <input type="checkbox" id="chk-hidden" />
+        显示隐藏文件（.开头）
+      </label>
+      <label class="prefs-label">
+        双击文件夹：
+        <select class="select-sort" id="sel-folder-dbl">
+          <option value="enter">进入目录</option>
+          <option value="reveal">在访达定位</option>
+        </select>
+      </label>
+      <label class="prefs-label" id="wrap-internal" style="display:none;">
+        <input type="checkbox" id="chk-internal" />
+        包含内部元数据文件
+      </label>
+    </div>
+
+    <div class="toolbar">
+      <div class="path-row" id="path-row">
+        <button class="icon-btn" id="btn-up" type="button" title="返回上级目录">↑</button>
+        <div class="breadcrumbs" id="breadcrumbs" title="点击面包屑跳转，点击右侧编辑完整路径"></div>
+        <input class="path-input" id="path-input" type="text" style="display:none;" placeholder="输入路径后回车，例如 ~/Projects/反重力" />
+        <button class="icon-btn" id="btn-edit-path" type="button" title="手动输入路径 (Cmd/Ctrl+L)">✎</button>
+        <button class="icon-btn" id="btn-pin" type="button" title="收藏/取消收藏当前目录">☆</button>
+      </div>
+      <div class="filter-row">
+        <div class="search-wrap">
+          <input class="search-input" id="search-input" type="text" placeholder="按名称过滤..." />
+          <button class="clear-search" id="btn-clear-search" type="button" style="display:none;">✕</button>
+        </div>
+        <select class="select-sort" id="sel-sort" title="排序方式">
+          <option value="name:asc">名称 ↑</option>
+          <option value="mtime:desc">最新修改</option>
+          <option value="size:desc">文件大小</option>
+          <option value="ext:asc">文件类型</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="hint-strip">
+      <span id="hint-text">提示：双击任意文件即可弹出访达（open -R）并高亮选中</span>
+      <span id="count-text">0 项</span>
+    </div>
+
+    <div class="list-container" id="list-container" tabindex="0">
+      <div class="empty-state">正在连接 Finder 浏览器服务...</div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (function () {
+      const state = {
+        mode: 'directory', // 'directory' | 'artifacts'
+        currentPath: '',
+        parentPath: null,
+        breadcrumbs: [],
+        entries: [],
+        artifacts: [],
+        roots: [],
+        prefs: {
+          showHidden: false,
+          folderDoubleClick: 'enter',
+          pinnedPaths: [],
+        },
+        includeInternal: false,
+        sortBy: 'name',
+        sortDir: 'asc',
+        query: '',
+        selectedPath: null,
+        editingPath: false,
+        connected: false,
+        receivedInitialResult: false,
+      };
+
+      let rpcId = 1;
+      const pendingRequests = new Map();
+
+      function applyTheme(theme) {
+        if (theme === 'dark' || theme === 'light') {
+          document.documentElement.setAttribute('data-theme', theme);
+        }
+      }
+
+      function applyStyleVariables(vars) {
+        if (!vars || typeof vars !== 'object') return;
+        const root = document.documentElement;
+        for (const [key, val] of Object.entries(vars)) {
+          if (typeof val === 'string' && key.startsWith('--')) {
+            root.style.setProperty(key, val);
+          }
+        }
+      }
+
+      function applyHostContext(ctx) {
+        if (!ctx || typeof ctx !== 'object') return;
+        if (ctx.theme) applyTheme(ctx.theme);
+        if (ctx.styles && ctx.styles.variables) {
+          applyStyleVariables(ctx.styles.variables);
+        }
+      }
+
+      function postToHost(payload) {
+        window.parent.postMessage(payload, '*');
+      }
+
+      function sendRequest(method, params) {
+        const id = rpcId++;
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            pendingRequests.delete(id);
+            reject(new Error(`请求超时: ${method}`));
+          }, 15000);
+
+          pendingRequests.set(id, {
+            resolve: (res) => {
+              clearTimeout(timer);
+              resolve(res);
+            },
+            reject: (err) => {
+              clearTimeout(timer);
+              reject(err);
+            },
+          });
+
+          postToHost({
+            jsonrpc: '2.0',
+            id,
+            method,
+            params: params || {},
+          });
+        });
+      }
+
+      async function callServerTool(name, args) {
+        const result = await sendRequest('tools/call', {
+          name,
+          arguments: args || {},
+        });
+        if (result && result.isError) {
+          const msg = result.content && result.content[0] && result.content[0].text
+            ? result.content[0].text
+            : '工具调用失败';
+          throw new Error(msg);
+        }
+        return result;
+      }
+
+      // Register message handler BEFORE connecting so no notification is missed.
+      window.addEventListener('message', (event) => {
+        const msg = event.data;
+        if (!msg || typeof msg !== 'object') return;
+
+        // Handle JSON-RPC responses to our outgoing requests
+        if (msg.id !== undefined && msg.id !== null && !msg.method) {
+          const pending = pendingRequests.get(msg.id);
+          if (pending) {
+            pendingRequests.delete(msg.id);
+            if (msg.error) {
+              pending.reject(new Error(msg.error.message || JSON.stringify(msg.error)));
+            } else {
+              pending.resolve(msg.result);
+            }
+          }
+          return;
+        }
+
+        // Handle JSON-RPC requests from host (ping / teardown)
+        if (msg.id !== undefined && msg.id !== null && msg.method) {
+          if (msg.method === 'ping' || msg.method === 'ui/resource-teardown') {
+            postToHost({ jsonrpc: '2.0', id: msg.id, result: {} });
+          } else {
+            postToHost({
+              jsonrpc: '2.0',
+              id: msg.id,
+              error: { code: -32601, message: `Method not found: ${msg.method}` },
+            });
+          }
+          return;
+        }
+
+        // Handle Host -> View notifications
+        if (msg.method === 'ui/notifications/host-context-changed') {
+          applyHostContext(msg.params);
+        } else if (msg.method === 'ui/notifications/tool-input') {
+          const args = msg.params && msg.params.arguments;
+          if (args && args.mode === 'artifacts') {
+            state.mode = 'artifacts';
+          }
+        } else if (msg.method === 'ui/notifications/tool-result') {
+          state.receivedInitialResult = true;
+          handleStructuredPayload(msg.params && msg.params.structuredContent);
+        }
+      });
+
+      const el = {
+        tabDir: document.getElementById('tab-dir'),
+        tabArtifacts: document.getElementById('tab-artifacts'),
+        btnRevealCurrent: document.getElementById('btn-reveal-current'),
+        btnRefresh: document.getElementById('btn-refresh'),
+        btnPrefs: document.getElementById('btn-prefs'),
+        prefsBar: document.getElementById('prefs-bar'),
+        chkHidden: document.getElementById('chk-hidden'),
+        selFolderDbl: document.getElementById('sel-folder-dbl'),
+        wrapInternal: document.getElementById('wrap-internal'),
+        chkInternal: document.getElementById('chk-internal'),
+        rootsBar: document.getElementById('roots-bar'),
+        pathRow: document.getElementById('path-row'),
+        btnUp: document.getElementById('btn-up'),
+        breadcrumbs: document.getElementById('breadcrumbs'),
+        pathInput: document.getElementById('path-input'),
+        btnEditPath: document.getElementById('btn-edit-path'),
+        btnPin: document.getElementById('btn-pin'),
+        searchInput: document.getElementById('search-input'),
+        btnClearSearch: document.getElementById('btn-clear-search'),
+        selSort: document.getElementById('sel-sort'),
+        hintText: document.getElementById('hint-text'),
+        countText: document.getElementById('count-text'),
+        listContainer: document.getElementById('list-container'),
+        toast: document.getElementById('toast'),
+      };
+
+      let toastTimer = null;
+      function showToast(text, isError = false) {
+        el.toast.textContent = text;
+        el.toast.className = isError ? 'toast error show' : 'toast show';
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          el.toast.className = 'toast';
+        }, 2600);
+      }
+
+      function formatSize(bytes) {
+        if (bytes === undefined || bytes === null) return '';
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+        return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+      }
+
+      function formatTime(ms) {
+        if (!ms) return '';
+        const d = new Date(ms);
+        const diff = Date.now() - ms;
+        if (diff < 60 * 1000 && diff >= 0) return '刚刚';
+        if (diff < 3600 * 1000 && diff >= 0) return `${Math.floor(diff / 60000)} 分钟前`;
+        if (diff < 24 * 3600 * 1000 && diff >= 0) return `${Math.floor(diff / 3600000)} 小时前`;
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getMonth() + 1}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      }
+
+      function getIcon(item) {
+        if (item.isDirectory) return '📁';
+        const ext = (item.ext || '').toLowerCase();
+        if (['.md', '.mdx', '.txt', '.rtf'].includes(ext)) return '📝';
+        if (['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'].includes(ext)) return '🖼️';
+        if (['.ts', '.tsx', '.js', '.jsx', '.mjs', '.py', '.go', '.rs', '.java', '.c', '.cpp', '.swift', '.sh'].includes(ext)) return '💻';
+        if (['.json', '.yaml', '.yml', '.toml', '.xml', '.env'].includes(ext)) return '⚙️';
+        if (['.pdf'].includes(ext)) return '📕';
+        if (['.zip', '.tar', '.gz', '.dmg', '.pkg'].includes(ext)) return '📦';
+        if (['.mp4', '.mov', '.webm', '.mp3', '.wav'].includes(ext)) return '🎬';
+        if (['.html', '.css', '.scss'].includes(ext)) return '🌐';
+        return '📄';
+      }
+
+      function handleStructuredPayload(sc) {
+        if (!sc || typeof sc !== 'object') return;
+        if (sc.mode) state.mode = sc.mode;
+        if (Array.isArray(sc.roots)) state.roots = sc.roots;
+        if (sc.prefs) {
+          state.prefs = { ...state.prefs, ...sc.prefs };
+          el.chkHidden.checked = Boolean(state.prefs.showHidden);
+          el.selFolderDbl.value = state.prefs.folderDoubleClick || 'enter';
+        }
+        if (sc.listing) {
+          state.currentPath = sc.listing.currentPath || '';
+          state.parentPath = sc.listing.parentPath || null;
+          state.breadcrumbs = sc.listing.breadcrumbs || [];
+          state.entries = sc.listing.entries || [];
+          state.totalCount = sc.listing.totalCount ?? state.entries.length;
+          state.truncated = Boolean(sc.listing.truncated);
+        }
+        if (sc.artifacts) {
+          state.artifacts = sc.artifacts.items || [];
+        }
+        if (sc.highlightPath) {
+          state.selectedPath = sc.highlightPath;
+        }
+        renderAll();
+      }
+
+      async function loadDirectory(targetPath) {
+        try {
+          const res = await callServerTool('list_directory', {
+            path: targetPath || state.currentPath,
+            showHidden: state.prefs.showHidden,
+            sortBy: state.sortBy,
+            sortDir: state.sortDir,
+            query: state.query,
+          });
+          handleStructuredPayload(res.structuredContent);
+        } catch (err) {
+          showToast(err.message, true);
+        }
+      }
+
+      async function loadArtifacts() {
+        try {
+          const res = await callServerTool('get_recent_artifacts', {
+            includeInternal: state.includeInternal,
+            query: state.query,
+          });
+          handleStructuredPayload(res.structuredContent);
+        } catch (err) {
+          showToast(err.message, true);
+        }
+      }
+
+      async function revealInFinder(targetPath, rowEl) {
+        try {
+          await callServerTool('reveal_in_finder', { path: targetPath });
+          const name = targetPath.split('/').filter(Boolean).pop() || targetPath;
+          showToast(`已在访达中定位：${name}`);
+          if (rowEl) {
+            rowEl.classList.remove('flash');
+            void rowEl.offsetWidth;
+            rowEl.classList.add('flash');
+          }
+        } catch (err) {
+          showToast(`无法在访达打开：${err.message}`, true);
+        }
+      }
+
+      async function openInSystem(targetPath) {
+        try {
+          await callServerTool('open_in_system', { path: targetPath });
+          const name = targetPath.split('/').filter(Boolean).pop() || targetPath;
+          showToast(`已打开：${name}`);
+        } catch (err) {
+          showToast(`打开失败：${err.message}`, true);
+        }
+      }
+
+      async function copyPath(targetPath) {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(targetPath);
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = targetPath;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          }
+          showToast('已复制文件路径');
+        } catch {
+          showToast('复制失败，当前环境限制剪贴板', true);
+        }
+      }
+
+      function renderTabsAndToolbar() {
+        const isDirMode = state.mode === 'directory';
+        el.tabDir.classList.toggle('active', isDirMode);
+        el.tabArtifacts.classList.toggle('active', !isDirMode);
+        el.pathRow.style.display = isDirMode ? 'flex' : 'none';
+        el.selSort.style.display = isDirMode ? 'inline-block' : 'none';
+        el.btnRevealCurrent.style.display = isDirMode ? 'inline-flex' : 'none';
+        el.wrapInternal.style.display = isDirMode ? 'none' : 'inline-flex';
+        el.hintText.textContent = isDirMode
+          ? '提示：双击文件在访达高亮显示；双击文件夹' + (state.prefs.folderDoubleClick === 'reveal' ? '在访达定位' : '进入目录')
+          : '提示：已自动扫描 ~/.gemini/antigravity/brain，双击任意产物在访达中定位';
+      }
+
+      function renderRoots() {
+        el.rootsBar.innerHTML = '';
+        for (const root of state.roots) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'root-chip' + (state.mode === 'directory' && state.currentPath === root.path ? ' active' : '');
+          btn.title = root.path;
+
+          const labelSpan = document.createElement('span');
+          labelSpan.textContent = root.label;
+          btn.appendChild(labelSpan);
+
+          if (root.badge) {
+            const badge = document.createElement('span');
+            badge.className = 'root-badge';
+            badge.textContent = `· ${root.badge}`;
+            btn.appendChild(badge);
+          }
+
+          btn.addEventListener('click', () => {
+            state.mode = 'directory';
+            state.editingPath = false;
+            loadDirectory(root.path);
+          });
+          el.rootsBar.appendChild(btn);
+        }
+      }
+
+      function renderBreadcrumbs() {
+        el.btnUp.disabled = !state.parentPath;
+        const isPinned = state.prefs.pinnedPaths && state.prefs.pinnedPaths.includes(state.currentPath);
+        el.btnPin.textContent = isPinned ? '★' : '☆';
+        el.btnPin.classList.toggle('active', isPinned);
+
+        if (state.editingPath) {
+          el.breadcrumbs.style.display = 'none';
+          el.pathInput.style.display = 'block';
+          el.pathInput.value = state.currentPath;
+          return;
+        }
+
+        el.breadcrumbs.style.display = 'flex';
+        el.pathInput.style.display = 'none';
+        el.breadcrumbs.innerHTML = '';
+
+        state.breadcrumbs.forEach((crumb, idx) => {
+          if (idx > 0) {
+            const sep = document.createElement('span');
+            sep.className = 'crumb-sep';
+            sep.textContent = '/';
+            el.breadcrumbs.appendChild(sep);
+          }
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'crumb-btn' + (idx === state.breadcrumbs.length - 1 ? ' last' : '');
+          btn.textContent = crumb.name === '/' ? 'Macintosh HD' : crumb.name;
+          btn.title = crumb.path;
+          btn.addEventListener('click', () => loadDirectory(crumb.path));
+          el.breadcrumbs.appendChild(btn);
+        });
+
+        el.breadcrumbs.scrollLeft = el.breadcrumbs.scrollWidth;
+      }
+
+      function createRowActions(item) {
+        const wrap = document.createElement('div');
+        wrap.className = 'row-actions';
+
+        const btnFinder = document.createElement('button');
+        btnFinder.type = 'button';
+        btnFinder.className = 'mini-btn finder';
+        btnFinder.textContent = '访达';
+        btnFinder.title = '在 macOS 访达中定位显示 (open -R)';
+        btnFinder.addEventListener('click', (e) => {
+          e.stopPropagation();
+          revealInFinder(item.path, btnFinder.closest('.file-row'));
+        });
+        wrap.appendChild(btnFinder);
+
+        if (!item.isDirectory) {
+          const btnOpen = document.createElement('button');
+          btnOpen.type = 'button';
+          btnOpen.className = 'mini-btn';
+          btnOpen.textContent = '打开';
+          btnOpen.title = '用系统默认应用打开';
+          btnOpen.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openInSystem(item.path);
+          });
+          wrap.appendChild(btnOpen);
+        }
+
+        const btnCopy = document.createElement('button');
+        btnCopy.type = 'button';
+        btnCopy.className = 'mini-btn';
+        btnCopy.textContent = '路径';
+        btnCopy.title = '复制绝对路径';
+        btnCopy.addEventListener('click', (e) => {
+          e.stopPropagation();
+          copyPath(item.path);
+        });
+        wrap.appendChild(btnCopy);
+
+        return wrap;
+      }
+
+      function renderList() {
+        const container = el.listContainer;
+        container.innerHTML = '';
+
+        const isDirMode = state.mode === 'directory';
+        const items = isDirMode ? state.entries : state.artifacts;
+
+        if (isDirMode) {
+          el.countText.textContent = state.truncated
+            ? `显示前 ${items.length} / ${state.totalCount} 项`
+            : `${items.length} 项`;
+        } else {
+          el.countText.textContent = `${items.length} 个最近产物`;
+        }
+
+        if (!items || items.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'empty-state';
+          empty.innerHTML = state.query
+            ? `<div>没有匹配 “${escapeHtml(state.query)}” 的文件</div>`
+            : isDirMode
+              ? '<div>当前目录为空（或文件被隐藏，可在右上角 ⚙ 开启显示隐藏文件）</div>'
+              : '<div>暂未发现 Antigravity 产物文件</div>';
+          container.appendChild(empty);
+          return;
+        }
+
+        const frag = document.createDocumentFragment();
+        for (const item of items) {
+          const row = document.createElement('div');
+          row.className = 'file-row'
+            + (item.isDirectory ? ' is-dir' : '')
+            + (state.selectedPath === item.path ? ' selected' : '');
+          row.dataset.path = item.path;
+          row.title = item.path;
+
+          const icon = document.createElement('div');
+          icon.className = 'file-icon';
+          icon.textContent = getIcon(item);
+          row.appendChild(icon);
+
+          const main = document.createElement('div');
+          main.className = 'file-main';
+
+          const nameLine = document.createElement('div');
+          nameLine.className = 'file-name-line';
+
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'file-name';
+          nameSpan.textContent = item.name;
+          nameLine.appendChild(nameSpan);
+
+          if (item.isSymlink) {
+            const sym = document.createElement('span');
+            sym.className = 'tag-pill';
+            sym.textContent = '替身';
+            nameLine.appendChild(sym);
+          }
+
+          if (!isDirMode && item.isCurrentConversation) {
+            const cur = document.createElement('span');
+            cur.className = 'tag-pill current-conv';
+            cur.textContent = '当前会话';
+            nameLine.appendChild(cur);
+          }
+
+          main.appendChild(nameLine);
+
+          if (!isDirMode) {
+            const sub = document.createElement('div');
+            sub.className = 'file-sub';
+            sub.textContent = `${item.conversationId.slice(0, 8)} · ${item.relativePath}`;
+            main.appendChild(sub);
+          }
+
+          row.appendChild(main);
+
+          const meta = document.createElement('div');
+          meta.className = 'file-meta';
+          const timeDiv = document.createElement('div');
+          timeDiv.textContent = formatTime(item.mtimeMs);
+          meta.appendChild(timeDiv);
+          if (!item.isDirectory) {
+            const sizeDiv = document.createElement('div');
+            sizeDiv.textContent = formatSize(item.size);
+            meta.appendChild(sizeDiv);
+          }
+          row.appendChild(meta);
+
+          row.appendChild(createRowActions(item));
+
+          row.addEventListener('click', () => {
+            state.selectedPath = item.path;
+            for (const r of container.querySelectorAll('.file-row.selected')) {
+              r.classList.remove('selected');
+            }
+            row.classList.add('selected');
+          });
+
+          row.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            if (item.isDirectory) {
+              if (state.prefs.folderDoubleClick === 'reveal') {
+                revealInFinder(item.path, row);
+              } else {
+                loadDirectory(item.path);
+              }
+            } else {
+              revealInFinder(item.path, row);
+            }
+          });
+
+          frag.appendChild(row);
+        }
+        container.appendChild(frag);
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function renderAll() {
+        renderTabsAndToolbar();
+        renderRoots();
+        if (state.mode === 'directory') {
+          renderBreadcrumbs();
+        }
+        renderList();
+      }
+
+      // Event bindings
+      el.tabDir.addEventListener('click', () => {
+        if (state.mode === 'directory') return;
+        state.mode = 'directory';
+        loadDirectory(state.currentPath);
+      });
+
+      el.tabArtifacts.addEventListener('click', () => {
+        if (state.mode === 'artifacts') return;
+        state.mode = 'artifacts';
+        renderAll();
+        loadArtifacts();
+      });
+
+      el.btnRevealCurrent.addEventListener('click', () => {
+        if (state.currentPath) {
+          revealInFinder(state.currentPath);
+        }
+      });
+
+      el.btnRefresh.addEventListener('click', () => {
+        if (state.mode === 'directory') {
+          loadDirectory(state.currentPath);
+        } else {
+          loadArtifacts();
+        }
+      });
+
+      el.btnPrefs.addEventListener('click', () => {
+        const isOpen = el.prefsBar.classList.toggle('open');
+        el.btnPrefs.classList.toggle('active', isOpen);
+      });
+
+      el.chkHidden.addEventListener('change', async () => {
+        const nextVal = el.chkHidden.checked;
+        state.prefs.showHidden = nextVal;
+        await callServerTool('update_browser_prefs', { showHidden: nextVal }).catch(() => {});
+        if (state.mode === 'directory') loadDirectory(state.currentPath);
+      });
+
+      el.selFolderDbl.addEventListener('change', async () => {
+        const nextVal = el.selFolderDbl.value;
+        state.prefs.folderDoubleClick = nextVal;
+        await callServerTool('update_browser_prefs', { folderDoubleClick: nextVal }).catch(() => {});
+        renderTabsAndToolbar();
+      });
+
+      el.chkInternal.addEventListener('change', () => {
+        state.includeInternal = el.chkInternal.checked;
+        loadArtifacts();
+      });
+
+      el.btnUp.addEventListener('click', () => {
+        if (state.parentPath) {
+          loadDirectory(state.parentPath);
+        }
+      });
+
+      el.btnEditPath.addEventListener('click', () => {
+        state.editingPath = !state.editingPath;
+        renderBreadcrumbs();
+        if (state.editingPath) {
+          el.pathInput.focus();
+          el.pathInput.select();
+        }
+      });
+
+      el.pathInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const val = el.pathInput.value.trim();
+          state.editingPath = false;
+          if (val) loadDirectory(val);
+          else renderBreadcrumbs();
+        } else if (e.key === 'Escape') {
+          state.editingPath = false;
+          renderBreadcrumbs();
+        }
+      });
+
+      el.pathInput.addEventListener('blur', () => {
+        if (state.editingPath) {
+          state.editingPath = false;
+          renderBreadcrumbs();
+        }
+      });
+
+      el.btnPin.addEventListener('click', async () => {
+        if (!state.currentPath) return;
+        const isPinned = state.prefs.pinnedPaths && state.prefs.pinnedPaths.includes(state.currentPath);
+        try {
+          const res = await callServerTool('update_browser_prefs', isPinned
+            ? { unpinPath: state.currentPath }
+            : { pinPath: state.currentPath }
+          );
+          handleStructuredPayload(res.structuredContent);
+          showToast(isPinned ? '已取消收藏目录' : '已收藏到快捷栏');
+        } catch (err) {
+          showToast(err.message, true);
+        }
+      });
+
+      let searchTimer = null;
+      el.searchInput.addEventListener('input', () => {
+        state.query = el.searchInput.value;
+        el.btnClearSearch.style.display = state.query ? 'block' : 'none';
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+          if (state.mode === 'directory') loadDirectory(state.currentPath);
+          else loadArtifacts();
+        }, 160);
+      });
+
+      el.btnClearSearch.addEventListener('click', () => {
+        el.searchInput.value = '';
+        state.query = '';
+        el.btnClearSearch.style.display = 'none';
+        if (state.mode === 'directory') loadDirectory(state.currentPath);
+        else loadArtifacts();
+      });
+
+      el.selSort.addEventListener('change', () => {
+        const [by, dir] = el.selSort.value.split(':');
+        state.sortBy = by;
+        state.sortDir = dir;
+        loadDirectory(state.currentPath);
+      });
+
+      window.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'l' && state.mode === 'directory') {
+          e.preventDefault();
+          state.editingPath = true;
+          renderBreadcrumbs();
+          el.pathInput.focus();
+          el.pathInput.select();
+        }
+      });
+
+      // Notify host on size change for inline mode
+      if (typeof ResizeObserver !== 'undefined') {
+        const ro = new ResizeObserver(() => {
+          postToHost({
+            jsonrpc: '2.0',
+            method: 'ui/notifications/size-changed',
+            params: {
+              width: document.documentElement.scrollWidth,
+              height: Math.min(620, Math.max(460, document.documentElement.scrollHeight)),
+            },
+          });
+        });
+        ro.observe(document.body);
+      }
+
+      async function connect() {
+        try {
+          const initResult = await sendRequest('ui/initialize', {
+            protocolVersion: '2026-01-26',
+            appInfo: { name: 'Finder Explorer', version: '1.0.0' },
+            appCapabilities: {},
+          });
+          if (initResult && initResult.hostContext) {
+            applyHostContext(initResult.hostContext);
+          }
+          postToHost({
+            jsonrpc: '2.0',
+            method: 'ui/notifications/initialized',
+            params: {},
+          });
+          state.connected = true;
+
+          setTimeout(() => {
+            if (!state.receivedInitialResult) {
+              callServerTool('open_finder_browser', {})
+                .then((res) => handleStructuredPayload(res.structuredContent))
+                .catch((err) => {
+                  el.listContainer.innerHTML = `<div class="empty-state">加载失败：${escapeHtml(err.message)}</div>`;
+                });
+            }
+          }, 250);
+        } catch (err) {
+          el.listContainer.innerHTML = `<div class="empty-state">与宿主通信失败：${escapeHtml(err.message)}</div>`;
+        }
+      }
+
+      connect();
+    })();
+  </script>
+</body>
+</html>

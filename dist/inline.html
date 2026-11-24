@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>产出文件列表</title>
+  <style>
+    :root {
+      --bg-primary: var(--color-background-primary, #ffffff);
+      --bg-secondary: var(--color-background-secondary, #f5f6f8);
+      --bg-tertiary: var(--color-background-tertiary, #eceef2);
+      --bg-info: var(--color-background-info, #e8f1ff);
+      --bg-success: var(--color-background-success, #e7f8ee);
+      --text-primary: var(--color-text-primary, #1b1d22);
+      --text-secondary: var(--color-text-secondary, #5d6470);
+      --text-tertiary: var(--color-text-tertiary, #8a919e);
+      --text-info: var(--color-text-info, #1d5bd6);
+      --text-danger: var(--color-text-danger, #c93030);
+      --border-primary: var(--color-border-primary, #dfe3ea);
+      --border-secondary: var(--color-border-secondary, #ebedf2);
+      --ring-primary: var(--color-ring-primary, #3b82f6);
+      --font-sans-ui: var(--font-sans, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", sans-serif);
+    }
+
+    html[data-theme="dark"] {
+      --bg-primary: var(--color-background-primary, #14161a);
+      --bg-secondary: var(--color-background-secondary, #1d2026);
+      --bg-tertiary: var(--color-background-tertiary, #272b33);
+      --bg-info: var(--color-background-info, #1b2c48);
+      --bg-success: var(--color-background-success, #153224);
+      --text-primary: var(--color-text-primary, #eceff4);
+      --text-secondary: var(--color-text-secondary, #a2aab8);
+      --text-tertiary: var(--color-text-tertiary, #737b89);
+      --text-info: var(--color-text-info, #72a5ff);
+      --text-danger: var(--color-text-danger, #ff7b7b);
+      --border-primary: var(--color-border-primary, #2c313b);
+      --border-secondary: var(--color-border-secondary, #232730);
+      --ring-primary: var(--color-ring-primary, #60a5fa);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-sans-ui);
+      font-size: 13px;
+      line-height: 1.4;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .card {
+      width: 100%;
+      background: var(--bg-primary);
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-secondary);
+    }
+
+    .title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .title {
+      font-weight: 600;
+      font-size: 12.5px;
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .hint-badge {
+      font-size: 11px;
+      color: var(--text-info);
+      background: var(--bg-info);
+      padding: 1px 7px;
+      border-radius: 999px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .hdr-btn {
+      border: 1px solid var(--border-primary);
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 11.5px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .hdr-btn:hover {
+      color: var(--text-primary);
+      border-color: var(--ring-primary);
+    }
+
+    .list {
+      max-height: 380px;
+      overflow-y: auto;
+      padding: 4px 6px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      cursor: default;
+      user-select: none;
+      transition: background 0.1s ease;
+    }
+
+    .row:hover {
+      background: var(--bg-secondary);
+    }
+
+    .row.selected {
+      background: var(--bg-info);
+    }
+
+    .row.flash {
+      animation: flashOk 0.75s ease;
+    }
+
+    @keyframes flashOk {
+      0% { background: var(--bg-success); }
+      100% { background: transparent; }
+    }
+
+    .icon {
+      width: 18px;
+      text-align: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .name-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .name {
+      font-weight: 500;
+      font-size: 12.5px;
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .missing-tag {
+      font-size: 10px;
+      color: var(--text-danger);
+      background: rgba(201, 48, 48, 0.12);
+      padding: 0 5px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .sub {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .size {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      flex-shrink: 0;
+      margin-right: 2px;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .mini-btn {
+      border: 1px solid var(--border-primary);
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      border-radius: 5px;
+      padding: 2px 7px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .mini-btn:hover {
+      color: var(--text-primary);
+      border-color: var(--ring-primary);
+    }
+
+    .mini-btn.finder {
+      background: var(--bg-info);
+      color: var(--text-info);
+      border-color: transparent;
+      font-weight: 500;
+    }
+
+    .empty {
+      padding: 20px 12px;
+      text-align: center;
+      color: var(--text-tertiary);
+      font-size: 12px;
+    }
+
+    .status-bar {
+      display: none;
+      padding: 5px 12px;
+      font-size: 11.5px;
+      border-top: 1px solid var(--border-secondary);
+      background: var(--bg-secondary);
+      color: var(--text-info);
+    }
+
+    .status-bar.show {
+      display: block;
+    }
+
+    .status-bar.error {
+      color: var(--text-danger);
+    }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="header">
+      <div class="title-wrap">
+        <span class="title" id="title">产出文件列表</span>
+        <span class="hint-badge">双击弹出访达</span>
+      </div>
+      <div class="header-actions">
+        <button class="hdr-btn" id="btn-open-dir" type="button" style="display:none;">在访达打开目录</button>
+      </div>
+    </div>
+    <div class="list" id="list">
+      <div class="empty">正在加载文件列表...</div>
+    </div>
+    <div class="status-bar" id="status-bar"></div>
+  </div>
+
+  <script>
+    (function () {
+      const state = {
+        title: '产出文件列表',
+        sourceDir: null,
+        items: [],
+        selectedPath: null,
+        receivedInitial: false,
+      };
+
+      let rpcId = 1;
+      const pending = new Map();
+
+      function applyTheme(theme) {
+        if (theme === 'dark' || theme === 'light') {
+          document.documentElement.setAttribute('data-theme', theme);
+        }
+      }
+
+      function applyStyleVariables(vars) {
+        if (!vars || typeof vars !== 'object') return;
+        const root = document.documentElement;
+        for (const [k, v] of Object.entries(vars)) {
+          if (typeof v === 'string' && k.startsWith('--')) {
+            root.style.setProperty(k, v);
+          }
+        }
+      }
+
+      function applyHostContext(ctx) {
+        if (!ctx || typeof ctx !== 'object') return;
+        if (ctx.theme) applyTheme(ctx.theme);
+        if (ctx.styles && ctx.styles.variables) applyStyleVariables(ctx.styles.variables);
+      }
+
+      function postToHost(payload) {
+        window.parent.postMessage(payload, '*');
+      }
+
+      function sendRequest(method, params) {
+        const id = rpcId++;
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            pending.delete(id);
+            reject(new Error(`请求超时: ${method}`));
+          }, 15000);
+          pending.set(id, {
+            resolve: (res) => { clearTimeout(timer); resolve(res); },
+            reject: (err) => { clearTimeout(timer); reject(err); },
+          });
+          postToHost({ jsonrpc: '2.0', id, method, params: params || {} });
+        });
+      }
+
+      async function callServerTool(name, args) {
+        const res = await sendRequest('tools/call', { name, arguments: args || {} });
+        if (res && res.isError) {
+          const msg = res.content && res.content[0] && res.content[0].text ? res.content[0].text : '调用失败';
+          throw new Error(msg);
+        }
+        return res;
+      }
+
+      const elTitle = document.getElementById('title');
+      const elBtnDir = document.getElementById('btn-open-dir');
+      const elList = document.getElementById('list');
+      const elStatus = document.getElementById('status-bar');
+      const elCard = document.getElementById('card');
+
+      let statusTimer = null;
+      function showStatus(text, isError = false) {
+        elStatus.textContent = text;
+        elStatus.className = isError ? 'status-bar show error' : 'status-bar show';
+        reportSize();
+        clearTimeout(statusTimer);
+        statusTimer = setTimeout(() => {
+          elStatus.className = 'status-bar';
+          reportSize();
+        }, 2800);
+      }
+
+      function formatSize(bytes) {
+        if (bytes === undefined || bytes === null) return '';
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      }
+
+      function getIcon(item) {
+        if (item.isDirectory) return '📁';
+        const ext = (item.ext || '').toLowerCase();
+        if (['.md', '.mdx', '.txt', '.rtf'].includes(ext)) return '📝';
+        if (['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'].includes(ext)) return '🖼️';
+        if (['.ts', '.tsx', '.js', '.jsx', '.mjs', '.py', '.go', '.rs', '.java', '.c', '.cpp', '.swift', '.sh'].includes(ext)) return '💻';
+        if (['.json', '.yaml', '.yml', '.toml', '.xml'].includes(ext)) return '⚙️';
+        if (['.pdf'].includes(ext)) return '📕';
+        if (['.html', '.css', '.scss'].includes(ext)) return '🌐';
+        return '📄';
+      }
+
+      async function reveal(targetPath, rowEl) {
+        try {
+          await callServerTool('reveal_in_finder', { path: targetPath });
+          const name = targetPath.split('/').filter(Boolean).pop() || targetPath;
+          showStatus(`已在访达中定位：${name}`);
+          if (rowEl) {
+            rowEl.classList.remove('flash');
+            void rowEl.offsetWidth;
+            rowEl.classList.add('flash');
+          }
+        } catch (err) {
+          showStatus(`无法打开访达：${err.message}`, true);
+        }
+      }
+
+      async function openDefault(targetPath) {
+        try {
+          await callServerTool('open_in_system', { path: targetPath });
+          const name = targetPath.split('/').filter(Boolean).pop() || targetPath;
+          showStatus(`已用默认程序打开：${name}`);
+        } catch (err) {
+          showStatus(`打开失败：${err.message}`, true);
+        }
+      }
+
+      async function copyText(text) {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          }
+          showStatus('已复制文件路径');
+        } catch {
+          showStatus('复制失败', true);
+        }
+      }
+
+      function reportSize() {
+        const h = Math.min(800, Math.max(96, elCard.scrollHeight));
+        postToHost({
+          jsonrpc: '2.0',
+          method: 'ui/notifications/size-changed',
+          params: {
+            width: document.documentElement.scrollWidth,
+            height: h,
+          },
+        });
+      }
+
+      function render() {
+        elTitle.textContent = state.title || '产出文件列表';
+        elBtnDir.style.display = state.sourceDir ? 'inline-block' : 'none';
+        elList.innerHTML = '';
+
+        if (!state.items || state.items.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'empty';
+          empty.textContent = '暂无文件';
+          elList.appendChild(empty);
+          reportSize();
+          return;
+        }
+
+        const frag = document.createDocumentFragment();
+        for (const item of state.items) {
+          const row = document.createElement('div');
+          row.className = 'row' + (state.selectedPath === item.path ? ' selected' : '');
+          row.title = `${item.path}\n双击在访达中定位显示`;
+
+          const icon = document.createElement('div');
+          icon.className = 'icon';
+          icon.textContent = getIcon(item);
+          row.appendChild(icon);
+
+          const main = document.createElement('div');
+          main.className = 'main';
+
+          const nameLine = document.createElement('div');
+          nameLine.className = 'name-line';
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'name';
+          nameSpan.textContent = item.name;
+          nameLine.appendChild(nameSpan);
+
+          if (item.exists === false) {
+            const miss = document.createElement('span');
+            miss.className = 'missing-tag';
+            miss.textContent = '不存在';
+            nameLine.appendChild(miss);
+          }
+          main.appendChild(nameLine);
+
+          const sub = document.createElement('div');
+          sub.className = 'sub';
+          sub.textContent = item.subLabel || item.path;
+          main.appendChild(sub);
+          row.appendChild(main);
+
+          if (!item.isDirectory && item.exists !== false) {
+            const size = document.createElement('div');
+            size.className = 'size';
+            size.textContent = formatSize(item.size);
+            row.appendChild(size);
+          }
+
+          const actions = document.createElement('div');
+          actions.className = 'actions';
+
+          const btnFinder = document.createElement('button');
+          btnFinder.type = 'button';
+          btnFinder.className = 'mini-btn finder';
+          btnFinder.textContent = '访达';
+          btnFinder.title = '在访达中定位显示 (open -R)';
+          btnFinder.addEventListener('click', (e) => {
+            e.stopPropagation();
+            reveal(item.path, row);
+          });
+          actions.appendChild(btnFinder);
+
+          if (!item.isDirectory && item.exists !== false) {
+            const btnOpen = document.createElement('button');
+            btnOpen.type = 'button';
+            btnOpen.className = 'mini-btn';
+            btnOpen.textContent = '打开';
+            btnOpen.title = '用系统默认应用打开';
+            btnOpen.addEventListener('click', (e) => {
+              e.stopPropagation();
+              openDefault(item.path);
+            });
+            actions.appendChild(btnOpen);
+          }
+
+          const btnCopy = document.createElement('button');
+          btnCopy.type = 'button';
+          btnCopy.className = 'mini-btn';
+          btnCopy.textContent = '路径';
+          btnCopy.title = '复制绝对路径';
+          btnCopy.addEventListener('click', (e) => {
+            e.stopPropagation();
+            copyText(item.path);
+          });
+          actions.appendChild(btnCopy);
+
+          row.appendChild(actions);
+
+          row.addEventListener('click', () => {
+            state.selectedPath = item.path;
+            for (const r of elList.querySelectorAll('.row.selected')) {
+              r.classList.remove('selected');
+            }
+            row.classList.add('selected');
+          });
+
+          row.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            reveal(item.path, row);
+          });
+
+          frag.appendChild(row);
+        }
+
+        elList.appendChild(frag);
+        reportSize();
+      }
+
+      elBtnDir.addEventListener('click', () => {
+        if (state.sourceDir) reveal(state.sourceDir);
+      });
+
+      window.addEventListener('message', (event) => {
+        const msg = event.data;
+        if (!msg || typeof msg !== 'object') return;
+
+        if (msg.id !== undefined && msg.id !== null && !msg.method) {
+          const p = pending.get(msg.id);
+          if (p) {
+            pending.delete(msg.id);
+            if (msg.error) p.reject(new Error(msg.error.message || JSON.stringify(msg.error)));
+            else p.resolve(msg.result);
+          }
+          return;
+        }
+
+        if (msg.id !== undefined && msg.id !== null && msg.method) {
+          if (msg.method === 'ping' || msg.method === 'ui/resource-teardown') {
+            postToHost({ jsonrpc: '2.0', id: msg.id, result: {} });
+          } else {
+            postToHost({ jsonrpc: '2.0', id: msg.id, error: { code: -32601, message: 'Method not found' } });
+          }
+          return;
+        }
+
+        if (msg.method === 'ui/notifications/host-context-changed') {
+          applyHostContext(msg.params);
+        } else if (msg.method === 'ui/notifications/tool-result') {
+          state.receivedInitial = true;
+          const sc = msg.params && msg.params.structuredContent;
+          if (sc && typeof sc === 'object') {
+            state.title = sc.title || '产出文件列表';
+            state.sourceDir = sc.sourceDir || null;
+            state.items = Array.isArray(sc.items) ? sc.items : [];
+            render();
+          }
+        }
+      });
+
+      if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(() => reportSize()).observe(elCard);
+      }
+
+      async function connect() {
+        try {
+          const initRes = await sendRequest('ui/initialize', {
+            protocolVersion: '2026-01-26',
+            appInfo: { name: 'Finder Inline Card', version: '1.0.0' },
+            appCapabilities: {},
+          });
+          if (initRes && initRes.hostContext) applyHostContext(initRes.hostContext);
+          postToHost({ jsonrpc: '2.0', method: 'ui/notifications/initialized', params: {} });
+
+          setTimeout(() => {
+            if (!state.receivedInitial) {
+              callServerTool('show_files_inline', {})
+                .then((res) => {
+                  const sc = res && res.structuredContent;
+                  if (sc) {
+                    state.title = sc.title || '产出文件列表';
+                    state.sourceDir = sc.sourceDir || null;
+                    state.items = Array.isArray(sc.items) ? sc.items : [];
+                    render();
+                  }
+                })
+                .catch((err) => {
+                  elList.innerHTML = `<div class="empty">加载失败：${err.message}</div>`;
+                });
+            }
+          }, 250);
+        } catch (err) {
+          elList.innerHTML = `<div class="empty">连接失败：${err.message}</div>`;
+        }
+      }
+
+      connect();
+    })();
+  </script>
+</body>
+</html>
