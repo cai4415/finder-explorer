@@ -1,13 +1,13 @@
 {
   "name": "finder-explorer",
   "displayName": "Finder 浏览器",
-  "description": "Antigravity 文件浏览器插件：支持在消息流中内嵌可双击的文件卡片，以及在侧边栏浏览工作区与反重力产出目录，双击任意文件即可调用 macOS 访达（open -R）弹出并高亮定位该文件。",
-  "version": "1.1.0",
-  "repository": "https://github.com/jinxingtaire/finder-explorer",
+  "description": "Antigravity 跨平台文件浏览器插件（基于 jinxingtaire/finder-explorer 适配 Windows 资源管理器 / macOS 访达 / Linux）：支持在消息流中内嵌可双击的文件卡片，以及在侧边栏浏览工作区与反重力产出目录，双击任意文件即可弹出系统文件管理器并高亮定位该文件。",
+  "version": "1.2.0",
+  "repository": "https://github.com/cai4415/finder-explorer",
   "logo": "assets/logo.svg",
   "suggestedPrompts": [
     "在消息里展示最近生成的 Antigravity 产出文件卡片",
     "打开 Finder 浏览器面板，查看工作区和最近产出文件",
-    "在访达中定位当前工作区的文件"
+    "在文件管理器中定位当前工作区的文件"
   ]
 }

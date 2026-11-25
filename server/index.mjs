@@ -3,11 +3,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import readline from 'node:readline';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 const execFileAsync = promisify(execFile);
+const IS_WIN = process.platform === 'win32';
+const IS_MAC = process.platform === 'darwin';
+const FM_LABEL = IS_WIN ? '资源管理器' : IS_MAC ? '访达' : '文件管理器';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -75,14 +78,23 @@ function expandPath(inputPath) {
   let trimmed = inputPath.trim();
   if (trimmed.startsWith('file://')) {
     try {
-      trimmed = decodeURIComponent(new URL(trimmed).pathname);
+      trimmed = fileURLToPath(trimmed);
     } catch {
-      trimmed = trimmed.slice('file://'.length);
+      try {
+        trimmed = decodeURIComponent(new URL(trimmed).pathname);
+      } catch {
+        trimmed = trimmed.slice('file://'.length);
+      }
+      if (IS_WIN && /^\/[a-zA-Z]:/.test(trimmed)) {
+        trimmed = trimmed.slice(1);
+      }
     }
   }
   const home = os.homedir();
   if (trimmed === '~') return home;
-  if (trimmed.startsWith('~/')) return path.join(home, trimmed.slice(2));
+  if (trimmed.startsWith('~/') || trimmed.startsWith('~\\')) {
+    return path.join(home, trimmed.slice(2));
+  }
   return path.resolve(trimmed);
 }
 
@@ -125,9 +137,10 @@ function getQuickRoots() {
   };
 
   const cwd = process.cwd();
+  const cwdRoot = cwd ? path.parse(cwd).root : '/';
   const isUsefulCwd =
     cwd &&
-    cwd !== '/' &&
+    cwd !== cwdRoot &&
     cwd !== PLUGIN_ROOT &&
     cwd !== home;
 
@@ -192,7 +205,8 @@ function resolveDefaultPath(requestedPath) {
     return appState.lastPath;
   }
   const cwd = process.cwd();
-  if (cwd && cwd !== '/' && cwd !== PLUGIN_ROOT) {
+  const cwdRoot = cwd ? path.parse(cwd).root : '/';
+  if (cwd && cwd !== cwdRoot && cwd !== PLUGIN_ROOT) {
     return cwd;
   }
   const brain = getBrainDir();
@@ -205,7 +219,7 @@ function buildBreadcrumbs(dirPath) {
   let current = path.resolve(dirPath);
   while (true) {
     const parent = path.dirname(current);
-    const name = current === '/' ? '/' : path.basename(current);
+    const name = path.basename(current) || current;
     parts.unshift({ name, path: current });
     if (parent === current) break;
     current = parent;
@@ -484,7 +498,7 @@ const TOOLS = [
     name: 'open_finder_browser',
     title: 'Finder 浏览器',
     description:
-      '打开 Finder 文件浏览器面板（侧边栏或全局视图），浏览当前工作区与反重力产出目录，双击任意文件即可弹出 macOS 访达并高亮定位该文件。',
+      '打开 Finder 文件浏览器面板（侧边栏或全局视图），浏览当前工作区与反重力产出目录，双击任意文件即可在系统文件管理器（Windows 资源管理器 / macOS 访达）中弹出并高亮定位该文件。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -515,7 +529,7 @@ const TOOLS = [
     name: 'show_files_inline',
     title: '消息内嵌文件卡片',
     description:
-      '直接在对话消息列表内渲染可交互的文件列表卡片，用户在聊天中双击任意文件即可弹出 macOS 访达（open -R）并高亮选中该文件。',
+      '直接在对话消息列表内渲染可交互的文件列表卡片，用户在聊天中双击任意文件即可弹出系统文件管理器（Windows 资源管理器 / macOS 访达）并高亮选中该文件。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -579,14 +593,14 @@ const TOOLS = [
   },
   {
     name: 'reveal_in_finder',
-    title: '在访达中定位显示',
-    description: '调用 macOS `open -R` 打开访达（Finder）并高亮选中指定文件或目录。',
+    title: '在文件管理器中定位显示',
+    description: '在系统文件管理器（Windows 资源管理器 / macOS 访达）中定位并高亮选中指定文件或目录。',
     inputSchema: {
       type: 'object',
       properties: {
         path: {
           type: 'string',
-          description: '要在访达中定位显示的文件或目录绝对路径',
+          description: '要在系统文件管理器中定位显示的文件或目录绝对路径',
         },
       },
       required: ['path'],
@@ -600,7 +614,7 @@ const TOOLS = [
   {
     name: 'open_in_system',
     title: '用系统默认程序打开',
-    description: '调用 macOS `open` 用默认应用程序打开文件或直接打开目录窗口。',
+    description: '调用系统默认应用程序打开文件或直接打开目录窗口（兼容 Windows / macOS / Linux）。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -635,6 +649,59 @@ const TOOLS = [
   },
 ];
 
+function spawnDetached(command, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      detached: true,
+      stdio: 'ignore',
+      ...options,
+    });
+    let settled = false;
+    child.once('error', (err) => {
+      if (!settled) {
+        settled = true;
+        reject(err);
+      }
+    });
+    child.once('spawn', () => {
+      if (!settled) {
+        settled = true;
+        child.unref();
+        resolve();
+      }
+    });
+  });
+}
+
+async function revealInFileManager(targetPath) {
+  if (IS_MAC) {
+    await execFileAsync('open', ['-R', targetPath]);
+    return;
+  }
+  if (IS_WIN) {
+    const winPath = path.win32.normalize(targetPath).replace(/"/g, '');
+    const isRoot = winPath === path.win32.parse(winPath).root;
+    const arg = isRoot ? `"${winPath}"` : `/select,"${winPath}"`;
+    await spawnDetached('explorer.exe', [arg], { windowsVerbatimArguments: true });
+    return;
+  }
+  const openDir = isDirectoryPath(targetPath) ? targetPath : path.dirname(targetPath);
+  await execFileAsync('xdg-open', [openDir]);
+}
+
+async function openWithDefaultApp(targetPath) {
+  if (IS_MAC) {
+    await execFileAsync('open', [targetPath]);
+    return;
+  }
+  if (IS_WIN) {
+    const winPath = path.win32.normalize(targetPath).replace(/"/g, '');
+    await spawnDetached('explorer.exe', [`"${winPath}"`], { windowsVerbatimArguments: true });
+    return;
+  }
+  await execFileAsync('xdg-open', [targetPath]);
+}
+
 async function handleToolCall(name, args = {}) {
   if (name === 'show_files_inline') {
     const inlineData = buildInlineItems(args);
@@ -642,10 +709,13 @@ async function handleToolCall(name, args = {}) {
       content: [
         {
           type: 'text',
-          text: `已在消息中展示 ${inlineData.items.length} 个文件（${inlineData.title}），双击任意文件即可在访达中定位显示。`,
+          text: `已在消息中展示 ${inlineData.items.length} 个文件（${inlineData.title}），双击任意文件即可在${FM_LABEL}中定位显示。`,
         },
       ],
-      structuredContent: inlineData,
+      structuredContent: {
+        ...inlineData,
+        platform: process.platform,
+      },
     };
   }
 
@@ -668,10 +738,11 @@ async function handleToolCall(name, args = {}) {
       content: [
         {
           type: 'text',
-          text: `已打开 Finder 浏览器，当前目录：${listing.currentPath}（共 ${listing.totalCount} 项）。在面板中双击任意文件即可在访达中弹出并定位。`,
+          text: `已打开 Finder 浏览器，当前目录：${listing.currentPath}（共 ${listing.totalCount} 项）。在面板中双击任意文件即可在${FM_LABEL}中弹出并定位。`,
         },
       ],
       structuredContent: {
+        platform: process.platform,
         mode,
         listing,
         artifacts,
@@ -702,6 +773,7 @@ async function handleToolCall(name, args = {}) {
     return {
       content: [{ type: 'text', text: `${listing.currentPath} (${listing.totalCount})` }],
       structuredContent: {
+        platform: process.platform,
         listing,
         roots: getQuickRoots(),
         prefs: {
@@ -721,6 +793,7 @@ async function handleToolCall(name, args = {}) {
     return {
       content: [{ type: 'text', text: `共找到 ${artifacts.items.length} 个最近产出文件。` }],
       structuredContent: {
+        platform: process.platform,
         artifacts,
         roots: getQuickRoots(),
       },
@@ -735,16 +808,10 @@ async function handleToolCall(name, args = {}) {
         content: [{ type: 'text', text: `文件或目录不存在：${args.path || '(空路径)'}` }],
       };
     }
-    if (process.platform !== 'darwin') {
-      return {
-        isError: true,
-        content: [{ type: 'text', text: `当前系统 (${process.platform}) 不是 macOS，无法调用访达 open -R。` }],
-      };
-    }
-    await execFileAsync('open', ['-R', targetPath]);
+    await revealInFileManager(targetPath);
     return {
-      content: [{ type: 'text', text: `已在访达中定位显示：${targetPath}` }],
-      structuredContent: { ok: true, path: targetPath, action: 'reveal' },
+      content: [{ type: 'text', text: `已在${FM_LABEL}中定位显示：${targetPath}` }],
+      structuredContent: { ok: true, path: targetPath, action: 'reveal', platform: process.platform },
     };
   }
 
@@ -756,10 +823,10 @@ async function handleToolCall(name, args = {}) {
         content: [{ type: 'text', text: `文件或目录不存在：${args.path || '(空路径)'}` }],
       };
     }
-    await execFileAsync('open', [targetPath]);
+    await openWithDefaultApp(targetPath);
     return {
       content: [{ type: 'text', text: `已用系统默认方式打开：${targetPath}` }],
-      structuredContent: { ok: true, path: targetPath, action: 'open' },
+      structuredContent: { ok: true, path: targetPath, action: 'open', platform: process.platform },
     };
   }
 
@@ -855,13 +922,13 @@ async function handleMessage(msg) {
           {
             uri: APP_URI,
             name: 'Finder 浏览器界面',
-            description: 'Antigravity 侧边栏文件浏览器，双击文件调用 macOS 访达定位显示',
+            description: 'Antigravity 侧边栏文件浏览器，双击文件调用系统文件管理器（Windows 资源管理器 / macOS 访达）定位显示',
             mimeType: APP_MIME_TYPE,
           },
           {
             uri: INLINE_URI,
             name: '消息内嵌文件卡片',
-            description: '在对话消息流中直接展示文件列表，双击任意文件弹出 macOS 访达定位显示',
+            description: '在对话消息流中直接展示文件列表，双击任意文件弹出系统文件管理器（Windows 资源管理器 / macOS 访达）定位显示',
             mimeType: APP_MIME_TYPE,
           },
         ],

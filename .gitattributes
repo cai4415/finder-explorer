@@ -1,0 +1,7 @@
+* text=auto eol=lf
+bin/finder-server text eol=lf
+*.sh text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.html text eol=lf
+*.md text eol=lf

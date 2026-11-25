@@ -1,9 +1,9 @@
 {
   "mcpServers": {
     "finder": {
-      "command": "bash",
+      "command": "node",
       "args": [
-        "${PLUGIN_ROOT}/bin/finder-server",
+        "${PLUGIN_ROOT}/server/index.mjs",
         "--data_dir=${PLUGIN_DATA}"
       ]
     }

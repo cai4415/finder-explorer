@@ -261,10 +261,10 @@
     <div class="header">
       <div class="title-wrap">
         <span class="title" id="title">产出文件列表</span>
-        <span class="hint-badge">双击弹出访达</span>
+        <span class="hint-badge" id="hint-badge">双击定位文件</span>
       </div>
       <div class="header-actions">
-        <button class="hdr-btn" id="btn-open-dir" type="button" style="display:none;">在访达打开目录</button>
+        <button class="hdr-btn" id="btn-open-dir" type="button" style="display:none;">打开所在目录</button>
       </div>
     </div>
     <div class="list" id="list">
@@ -276,6 +276,7 @@
   <script>
     (function () {
       const state = {
+        platform: null,
         title: '产出文件列表',
         sourceDir: null,
         items: [],
@@ -337,10 +338,27 @@
       }
 
       const elTitle = document.getElementById('title');
+      const elHintBadge = document.getElementById('hint-badge');
       const elBtnDir = document.getElementById('btn-open-dir');
       const elList = document.getElementById('list');
       const elStatus = document.getElementById('status-bar');
       const elCard = document.getElementById('card');
+
+      function getFileManagerLabel() {
+        if (state.platform === 'win32') return '资源管理器';
+        if (state.platform === 'darwin') return '访达';
+        return '文件管理器';
+      }
+
+      function getShortRevealLabel() {
+        if (state.platform === 'win32') return '定位';
+        if (state.platform === 'darwin') return '访达';
+        return '定位';
+      }
+
+      function getBaseName(targetPath) {
+        return String(targetPath || '').split(/[\\/]/).filter(Boolean).pop() || targetPath;
+      }
 
       let statusTimer = null;
       function showStatus(text, isError = false) {
@@ -374,24 +392,25 @@
       }
 
       async function reveal(targetPath, rowEl) {
+        const fm = getFileManagerLabel();
         try {
           await callServerTool('reveal_in_finder', { path: targetPath });
-          const name = targetPath.split('/').filter(Boolean).pop() || targetPath;
-          showStatus(`已在访达中定位：${name}`);
+          const name = getBaseName(targetPath);
+          showStatus(`已在${fm}中定位：${name}`);
           if (rowEl) {
             rowEl.classList.remove('flash');
             void rowEl.offsetWidth;
             rowEl.classList.add('flash');
           }
         } catch (err) {
-          showStatus(`无法打开访达：${err.message}`, true);
+          showStatus(`无法打开${fm}：${err.message}`, true);
         }
       }
 
       async function openDefault(targetPath) {
         try {
           await callServerTool('open_in_system', { path: targetPath });
-          const name = targetPath.split('/').filter(Boolean).pop() || targetPath;
+          const name = getBaseName(targetPath);
           showStatus(`已用默认程序打开：${name}`);
         } catch (err) {
           showStatus(`打开失败：${err.message}`, true);
@@ -431,7 +450,10 @@
       }
 
       function render() {
+        const fm = getFileManagerLabel();
         elTitle.textContent = state.title || '产出文件列表';
+        elHintBadge.textContent = `双击打开${fm}`;
+        elBtnDir.textContent = `在${fm}打开目录`;
         elBtnDir.style.display = state.sourceDir ? 'inline-block' : 'none';
         elList.innerHTML = '';
 
@@ -448,7 +470,7 @@
         for (const item of state.items) {
           const row = document.createElement('div');
           row.className = 'row' + (state.selectedPath === item.path ? ' selected' : '');
-          row.title = `${item.path}\n双击在访达中定位显示`;
+          row.title = `${item.path}\n双击在${fm}中定位显示`;
 
           const icon = document.createElement('div');
           icon.className = 'icon';
@@ -492,8 +514,8 @@
           const btnFinder = document.createElement('button');
           btnFinder.type = 'button';
           btnFinder.className = 'mini-btn finder';
-          btnFinder.textContent = '访达';
-          btnFinder.title = '在访达中定位显示 (open -R)';
+          btnFinder.textContent = getShortRevealLabel();
+          btnFinder.title = `在${fm}中定位显示`;
           btnFinder.addEventListener('click', (e) => {
             e.stopPropagation();
             reveal(item.path, row);
@@ -579,6 +601,7 @@
           state.receivedInitial = true;
           const sc = msg.params && msg.params.structuredContent;
           if (sc && typeof sc === 'object') {
+            if (sc.platform) state.platform = sc.platform;
             state.title = sc.title || '产出文件列表';
             state.sourceDir = sc.sourceDir || null;
             state.items = Array.isArray(sc.items) ? sc.items : [];
@@ -607,6 +630,7 @@
                 .then((res) => {
                   const sc = res && res.structuredContent;
                   if (sc) {
+                    if (sc.platform) state.platform = sc.platform;
                     state.title = sc.title || '产出文件列表';
                     state.sourceDir = sc.sourceDir || null;
                     state.items = Array.isArray(sc.items) ? sc.items : [];

@@ -549,7 +549,7 @@
         <button class="tab-btn" id="tab-artifacts" type="button">最近产出</button>
       </div>
       <div class="header-actions">
-        <button class="pill-btn primary" id="btn-reveal-current" type="button" title="在 macOS 访达中显示当前目录">访达打开当前</button>
+        <button class="pill-btn primary" id="btn-reveal-current" type="button" title="在系统文件管理器中显示当前目录">定位当前目录</button>
         <button class="icon-btn" id="btn-refresh" type="button" title="刷新列表">↻</button>
         <button class="icon-btn" id="btn-prefs" type="button" title="偏好设置">⚙</button>
       </div>
@@ -566,7 +566,7 @@
         双击文件夹：
         <select class="select-sort" id="sel-folder-dbl">
           <option value="enter">进入目录</option>
-          <option value="reveal">在访达定位</option>
+          <option value="reveal">在文件管理器定位</option>
         </select>
       </label>
       <label class="prefs-label" id="wrap-internal" style="display:none;">
@@ -579,7 +579,7 @@
       <div class="path-row" id="path-row">
         <button class="icon-btn" id="btn-up" type="button" title="返回上级目录">↑</button>
         <div class="breadcrumbs" id="breadcrumbs" title="点击面包屑跳转，点击右侧编辑完整路径"></div>
-        <input class="path-input" id="path-input" type="text" style="display:none;" placeholder="输入路径后回车，例如 ~/Projects/反重力" />
+        <input class="path-input" id="path-input" type="text" style="display:none;" placeholder="输入路径后回车，例如 C:\Users 或 ~/Projects" />
         <button class="icon-btn" id="btn-edit-path" type="button" title="手动输入路径 (Cmd/Ctrl+L)">✎</button>
         <button class="icon-btn" id="btn-pin" type="button" title="收藏/取消收藏当前目录">☆</button>
       </div>
@@ -598,7 +598,7 @@
     </div>
 
     <div class="hint-strip">
-      <span id="hint-text">提示：双击任意文件即可弹出访达（open -R）并高亮选中</span>
+      <span id="hint-text">提示：双击任意文件即可在系统文件管理器中定位并高亮选中</span>
       <span id="count-text">0 项</span>
     </div>
 
@@ -612,6 +612,7 @@
   <script>
     (function () {
       const state = {
+        platform: null,
         mode: 'directory', // 'directory' | 'artifacts'
         currentPath: '',
         parentPath: null,
@@ -824,8 +825,25 @@
         return '📄';
       }
 
+      function getFileManagerLabel() {
+        if (state.platform === 'win32') return '资源管理器';
+        if (state.platform === 'darwin') return '访达';
+        return '文件管理器';
+      }
+
+      function getShortRevealLabel() {
+        if (state.platform === 'win32') return '定位';
+        if (state.platform === 'darwin') return '访达';
+        return '定位';
+      }
+
+      function getBaseName(targetPath) {
+        return String(targetPath || '').split(/[\\/]/).filter(Boolean).pop() || targetPath;
+      }
+
       function handleStructuredPayload(sc) {
         if (!sc || typeof sc !== 'object') return;
+        if (sc.platform) state.platform = sc.platform;
         if (sc.mode) state.mode = sc.mode;
         if (Array.isArray(sc.roots)) state.roots = sc.roots;
         if (sc.prefs) {
@@ -878,24 +896,25 @@
       }
 
       async function revealInFinder(targetPath, rowEl) {
+        const fm = getFileManagerLabel();
         try {
           await callServerTool('reveal_in_finder', { path: targetPath });
-          const name = targetPath.split('/').filter(Boolean).pop() || targetPath;
-          showToast(`已在访达中定位：${name}`);
+          const name = getBaseName(targetPath);
+          showToast(`已在${fm}中定位：${name}`);
           if (rowEl) {
             rowEl.classList.remove('flash');
             void rowEl.offsetWidth;
             rowEl.classList.add('flash');
           }
         } catch (err) {
-          showToast(`无法在访达打开：${err.message}`, true);
+          showToast(`无法在${fm}打开：${err.message}`, true);
         }
       }
 
       async function openInSystem(targetPath) {
         try {
           await callServerTool('open_in_system', { path: targetPath });
-          const name = targetPath.split('/').filter(Boolean).pop() || targetPath;
+          const name = getBaseName(targetPath);
           showToast(`已打开：${name}`);
         } catch (err) {
           showToast(`打开失败：${err.message}`, true);
@@ -924,15 +943,23 @@
 
       function renderTabsAndToolbar() {
         const isDirMode = state.mode === 'directory';
+        const fm = getFileManagerLabel();
         el.tabDir.classList.toggle('active', isDirMode);
         el.tabArtifacts.classList.toggle('active', !isDirMode);
         el.pathRow.style.display = isDirMode ? 'flex' : 'none';
         el.selSort.style.display = isDirMode ? 'inline-block' : 'none';
         el.btnRevealCurrent.style.display = isDirMode ? 'inline-flex' : 'none';
+        el.btnRevealCurrent.textContent = state.platform === 'win32' ? '资源管理器打开' : `${fm}打开当前`;
+        el.btnRevealCurrent.title = `在${fm}中显示当前目录`;
+        const optReveal = el.selFolderDbl.querySelector('option[value="reveal"]');
+        if (optReveal) optReveal.textContent = `在${fm}定位`;
+        el.pathInput.placeholder = state.platform === 'win32'
+          ? '输入路径后回车，例如 C:\\Users 或 ~\\Documents'
+          : '输入路径后回车，例如 ~/Projects';
         el.wrapInternal.style.display = isDirMode ? 'none' : 'inline-flex';
         el.hintText.textContent = isDirMode
-          ? '提示：双击文件在访达高亮显示；双击文件夹' + (state.prefs.folderDoubleClick === 'reveal' ? '在访达定位' : '进入目录')
-          : '提示：已自动扫描 ~/.gemini/antigravity/brain，双击任意产物在访达中定位';
+          ? `提示：双击文件在${fm}高亮显示；双击文件夹` + (state.prefs.folderDoubleClick === 'reveal' ? `在${fm}定位` : '进入目录')
+          : `提示：已自动扫描 ~/.gemini/antigravity/brain，双击任意产物在${fm}中定位`;
       }
 
       function renderRoots() {
@@ -984,7 +1011,7 @@
           if (idx > 0) {
             const sep = document.createElement('span');
             sep.className = 'crumb-sep';
-            sep.textContent = '/';
+            sep.textContent = '›';
             el.breadcrumbs.appendChild(sep);
           }
           const btn = document.createElement('button');
@@ -1002,12 +1029,13 @@
       function createRowActions(item) {
         const wrap = document.createElement('div');
         wrap.className = 'row-actions';
+        const fm = getFileManagerLabel();
 
         const btnFinder = document.createElement('button');
         btnFinder.type = 'button';
         btnFinder.className = 'mini-btn finder';
-        btnFinder.textContent = '访达';
-        btnFinder.title = '在 macOS 访达中定位显示 (open -R)';
+        btnFinder.textContent = getShortRevealLabel();
+        btnFinder.title = `在${fm}中定位显示`;
         btnFinder.addEventListener('click', (e) => {
           e.stopPropagation();
           revealInFinder(item.path, btnFinder.closest('.file-row'));

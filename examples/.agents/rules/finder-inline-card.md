@@ -1,11 +1,11 @@
 ---
 trigger: always_on
-description: 所有重要产出内容统一通过 finder-explorer 内嵌文件卡片展示，支持在消息流中双击直接弹出 macOS 访达。
+description: 所有重要产出内容统一通过 finder-explorer 内嵌文件卡片展示，支持在消息流中双击直接弹出系统文件管理器（Windows 资源管理器 / macOS 访达）。
 ---
 
 # 重要产出内嵌卡片展示规则
 
-当在当前工作区完成任务并产出**重要内容 / 交付物**时，统一通过 `finder-explorer_finder` MCP 服务的 `show_files_inline` 工具在消息流中展示可交互的文件卡片，方便用户直接在聊天记录里双击定位到 macOS 访达：
+当在当前工作区完成任务并产出**重要内容 / 交付物**时，统一通过 `finder-explorer_finder` MCP 服务的 `show_files_inline` 工具在消息流中展示可交互的文件卡片，方便用户直接在聊天记录里双击定位到系统文件管理器：
 
 1. **必须使用卡片的场景**：
    - 生成或导出了用户关心的文档、报告、方案（`.md` / `.pdf` / `.docx` 等）、Artifact 产物；
@@ -14,7 +14,7 @@ description: 所有重要产出内容统一通过 finder-explorer 内嵌文件�
 2. **调用方式**：
    - 在最终汇报前调用 `call_mcp_tool`（`ServerName: "finder-explorer_finder"`, `ToolName: "show_files_inline"`）；
    - `paths` 传入所有重要产出文件的**绝对路径数组**；
-   - `title` 传入简短清晰的标题（例如 `"重要产出文件（双击在访达中定位）"`）。
+   - `title` 传入简短清晰的标题（例如 `"重要产出文件（双击定位）"`）。
 3. **过滤与合并原则**：
    - 一次回复末尾汇总调用一次即可，避免在中间执行步骤反复刷卡片；
    - 仅包含用户真正需要查看、打开或交付的重要产出文件，不包含内部日志、临时缓存或无关依赖文件。
